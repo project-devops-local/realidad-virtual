@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generar carta y targets.mind</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f4fbf1; }
+    #preview { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-width: 640px; }
+    #preview img { width: 100%; border-radius: 8px; }
+    #log { white-space: pre-wrap; font-family: monospace; font-size: 13px; }
+    a { display: inline-block; margin: 4px 8px 4px 0; }
+  </style>
+</head>
+<body>
+  <h1>Generador de carta AR</h1>
+  <p>Dibuja las 4 imágenes de la carta y las compila a <code>targets.mind</code> para MindAR.</p>
+  <div id="preview"></div>
+  <div id="downloads"></div>
+  <div id="log"></div>
+
+  <script src="jugos.js"></script>
+  <script>
+    const AUTO = location.search.includes('auto');
+    const logEl = document.getElementById('log');
+    function log(msg) {
+      logEl.textContent += msg + '\n';
+      if (AUTO) fetch('/log', { method: 'POST', body: String(msg) });
+    }
+    window.onerror = (m, s, l) => log('ERROR: ' + m + ' @' + l);
+
+    // Números pseudoaleatorios con semilla: la misma carta sale siempre igual
+    function rng(seed) {
+      return () => {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function dibujarCarta(j, idx) {
+      const W = 600, c = document.createElement('canvas');
+      c.width = c.height = W;
+      const g = c.getContext('2d');
+      const r = rng(1000 + idx * 7919);
+      const R = (a, b) => a + r() * (b - a);
+
+      // Fondo degradado
+      const grad = g.createLinearGradient(0, 0, W, W);
+      grad.addColorStop(0, j.fondo[0]); grad.addColorStop(1, j.fondo[1]);
+      g.fillStyle = grad; g.fillRect(0, 0, W, W);
+
+      // Patrón decorativo: le da "textura" a la imagen para que la cámara la reconozca
+      for (let i = 0; i < 170; i++) {
+        const x = R(0, W), y = R(0, W), s = R(6, 34);
+        g.save();
+        g.translate(x, y); g.rotate(R(0, Math.PI * 2));
+        g.globalAlpha = R(0.35, 0.9);
+        g.fillStyle = g.strokeStyle = j.patron[Math.floor(r() * j.patron.length)];
+        g.lineWidth = R(2, 5);
+        const tipo = Math.floor(r() * 5);
+        if (tipo === 0) { g.beginPath(); g.arc(0, 0, s, 0, 7); g.fill(); }
+        else if (tipo === 1) { g.beginPath(); g.arc(0, 0, s, 0, 7); g.stroke(); g.beginPath(); g.arc(0, 0, s * 0.4, 0, 7); g.fill(); }
+        else if (tipo === 2) { g.beginPath(); g.moveTo(0, -s); g.lineTo(s, s); g.lineTo(-s, s); g.closePath(); g.fill(); }
+        else if (tipo === 3) { g.beginPath(); g.ellipse(0, 0, s, s * 0.4, 0, 0, 7); g.fill(); g.strokeStyle = '#1d2b1f'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-s, 0); g.lineTo(s, 0); g.stroke(); }
+        else { g.fillRect(-s / 2, -s / 2, s, s * 0.3); }
+        g.restore();
+      }
+      g.globalAlpha = 1;
+
+      // Número del producto
+      g.fillStyle = '#1d2b1f';
+      g.beginPath(); g.arc(70, 70, 42, 0, 7); g.fill();
+      g.fillStyle = '#fff'; g.font = 'bold 40px system-ui, sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(String(idx + 1).padStart(2, '0'), 70, 72);
+
+      // Vaso
+      const top = 110, bot = 450, tw = 100, bw = 75, cx = 300;
+      const xAt = (y, side) => cx + side * (tw + (bw - tw) * (y - top) / (bot - top));
+      const liqTop = 190;
+      g.fillStyle = j.liquido;
+      g.beginPath();
+      g.moveTo(xAt(liqTop, -1), liqTop); g.lineTo(xAt(liqTop, 1), liqTop);
+      g.lineTo(xAt(bot, 1), bot); g.lineTo(xAt(bot, -1), bot); g.closePath(); g.fill();
+      g.fillStyle = j.espuma;
+      g.fillRect(xAt(liqTop, -1), liqTop, xAt(liqTop, 1) - xAt(liqTop, -1), 22);
+      // Hielos
+      g.fillStyle = 'rgba(255,255,255,.7)'; g.strokeStyle = 'rgba(29,43,31,.5)'; g.lineWidth = 3;
+      [[250, 240, 0.3], [320, 260, -0.4], [280, 320, 0.1]].forEach(([x, y, a]) => {
+        g.save(); g.translate(x, y); g.rotate(a); g.fillRect(-24, -24, 48, 48); g.strokeRect(-24, -24, 48, 48); g.restore();
+      });
+      // Pitillo con rayas
+      g.save(); g.translate(330, 60); g.rotate(0.2);
+      g.fillStyle = '#e63946'; g.fillRect(-9, 0, 18, 330);
+      g.fillStyle = '#fff'; for (let y = 10; y < 330; y += 36) g.fillRect(-9, y, 18, 14);
+      g.restore();
+      // Contorno del vaso
+      g.strokeStyle = '#1d2b1f'; g.lineWidth = 8; g.lineJoin = 'round';
+      g.beginPath(); g.moveTo(xAt(top, -1), top); g.lineTo(xAt(bot, -1), bot);
+      g.lineTo(xAt(bot, 1), bot); g.lineTo(xAt(top, 1), top); g.stroke();
+      // Rodaja en el borde
+      const sx = xAt(top, 1) + 5, sy = top + 5, sr = 55;
+      g.fillStyle = j.cascara; g.beginPath(); g.arc(sx, sy, sr, 0, 7); g.fill();
+      g.fillStyle = j.pulpa; g.beginPath(); g.arc(sx, sy, sr - 9, 0, 7); g.fill();
+      g.strokeStyle = j.cascara; g.lineWidth = 3;
+      for (let a = 0; a < 8; a++) {
+        g.beginPath(); g.moveTo(sx, sy);
+        g.lineTo(sx + Math.cos(a * Math.PI / 4) * (sr - 9), sy + Math.sin(a * Math.PI / 4) * (sr - 9)); g.stroke();
+      }
+
+      // Banda inferior con nombre y precio
+      g.fillStyle = '#1d2b1f'; g.fillRect(0, 480, W, 120);
+      g.fillStyle = '#fff'; g.textAlign = 'left'; g.font = 'bold 44px system-ui, sans-serif';
+      g.fillText(j.nombre, 32, 525);
+      g.font = '24px system-ui, sans-serif'; g.fillStyle = '#cfe3d2';
+      g.fillText(j.desc, 32, 568);
+      g.textAlign = 'right'; g.font = 'bold 36px system-ui, sans-serif'; g.fillStyle = j.fondo[1];
+      g.fillText(j.precio, W - 28, 525);
+
+      // Marco
+      g.strokeStyle = '#1d2b1f'; g.lineWidth = 16; g.strokeRect(8, 8, W - 16, W - 16);
+      return c;
+    }
+
+    function cargar(src) {
+      return new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = src; });
+    }
+
+    async function guardar(nombre, blob) {
+      if (AUTO) {
+        await fetch('/save/' + nombre, { method: 'POST', body: blob });
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = nombre.split('/').pop(); a.textContent = '⬇ ' + nombre;
+        document.getElementById('downloads').appendChild(a);
+      }
+    }
+
+    (async () => {
+      try {
+        const imagenes = [];
+        for (let i = 0; i < JUGOS.length; i++) {
+          const canvas = dibujarCarta(JUGOS[i], i);
+          const blob = await new Promise(ok => canvas.toBlob(ok, 'image/png'));
+          await guardar(`img/producto-${i + 1}.png`, blob);
+          const img = await cargar(canvas.toDataURL('image/png'));
+          document.getElementById('preview').appendChild(img);
+          imagenes.push(img);
+        }
+        log('Imágenes listas. Compilando targets.mind (puede tardar un minuto)...');
+
+        const { Compiler } = await import('https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js');
+        const compiler = new Compiler();
+        await compiler.compileImageTargets(imagenes, (p) => {
+          if (Math.round(p) % 10 === 0) log('Progreso: ' + Math.round(p) + '%');
+        });
+        const buffer = await compiler.exportData();
+        await guardar('targets.mind', new Blob([buffer]));
+        log('LISTO: targets.mind generado (' + buffer.byteLength + ' bytes)');
+      } catch (e) {
+        log('ERROR: ' + (e && e.stack || e));
+      }
+    })();
+  </script>
+</body>
+</html>

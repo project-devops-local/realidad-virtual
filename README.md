@@ -1,6 +1,18 @@
 # Menú AR de Jugos: boceto open source
 
-El cliente escanea un QR en la mesa, se abre la web, apunta la cámara a la tarjeta del menú y aparece un vaso de jugo en 3D encima. Con las flechas cambia de sabor, precio e ingredientes.
+El cliente escanea un QR en la mesa, se abre la web y apunta la cámara a un producto de la carta. Encima aparece **ese** jugo en 3D, con su nombre y precio en un recuadro pequeño. Si mueve la cámara a otro producto, cambia el 3D.
+
+## Archivos
+
+| Archivo | Para qué sirve |
+|---|---|
+| `index.html` | Página de inicio (a la que lleva el QR) |
+| `ar.html` | La experiencia de realidad aumentada |
+| `carta.html` | Carta de prueba con 4 productos para mostrar en pantalla o imprimir |
+| `jugos.js` | **Tu menú**: nombres, precios y colores |
+| `img/producto-N.png` | Imagen de cada producto en la carta |
+| `targets.mind` | Las 4 imágenes "aprendidas" por la cámara |
+| `generar.html` | Regenera las imágenes y `targets.mind` si cambias `jugos.js` |
 
 ## Herramientas (todas gratis / open source)
 
@@ -20,25 +32,25 @@ python -m http.server 8000
 ```
 Abre http://localhost:8000 en Chrome, entra a "Abrir cámara AR" y permite la cámara.
 
-## Paso 2: Mostrarle la tarjeta a la cámara
+## Paso 2: Mostrarle la carta a la cámara
 
-Abre esta imagen en tu celular (o imprímela) y ponla frente a la webcam:
-https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png
-
-Debe aparecer el vaso girando, y abajo un panel con nombre, ingredientes y precio.
+Abre `carta.html` en otra pantalla (o imprímela) y apunta la cámara a uno de los 4 cuadros. Debe aparecer el vaso de ese producto girando, con un recuadro pequeño abajo que muestra el nombre, los ingredientes y el precio. Si apuntas a otro cuadro, cambia el jugo.
 
 ## Paso 3: Editar tu menú
 
-En `ar.html`, busca el arreglo `JUGOS` y cambia los nombres, las descripciones, los precios y los colores.
+Cambia nombres, precios y colores en `jugos.js`. Si cambias algo que se ve en la carta (nombre, precio o colores), vuelve a generar las imágenes y `targets.mind`:
+1. Con el servidor local corriendo, abre http://localhost:8000/generar.html.
+2. Espera a que diga "LISTO" y descarga los archivos.
+3. Reemplaza `img/producto-N.png` y `targets.mind`.
 
-## Paso 4: Usar TU propia imagen (logo, carta, individual de mesa)
+## Paso 4: Usar las fotos reales de TU carta
 
-1. Entra al compilador gratuito de MindAR, que corre en el navegador: https://hiukim.github.io/mind-ar-js-doc/tools/compile
-2. Sube tu imagen. Funcionan mejor las imágenes con mucho detalle y contraste; evita logos planos de un solo color.
-3. Descarga el archivo `targets.mind` y ponlo en esta carpeta.
-4. En `ar.html` cambia `imageTargetSrc: https://...card.mind` por `imageTargetSrc: ./targets.mind`.
+1. Recorta la foto de cada producto de tu carta como una imagen aparte.
+2. Súbelas **todas juntas y en orden** al compilador gratuito de MindAR, que corre en el navegador: https://hiukim.github.io/mind-ar-js-doc/tools/compile
+3. Descarga `targets.mind` y reemplaza el de esta carpeta.
+4. Deja `jugos.js` en el mismo orden: la primera imagen es el producto 1, la segunda el producto 2, y así sucesivamente.
 
-Truco: si subes varias imágenes a la vez (una por jugo), cada una tendrá su `targetIndex: 0, 1, 2...` y podrás poner un jugo distinto sobre cada una.
+Consejos: usa fotos con detalle y contraste, evita imágenes muy parecidas entre sí, imprime cada foto de al menos 5–6 cm y no pases de unos 10–15 productos por archivo.
 
 ## Paso 5: Probar en el celular (requiere HTTPS)
 
