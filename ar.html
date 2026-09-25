@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Menú AR · Jugos Naturales</title>
+
+  <!-- A-Frame (MIT) + MindAR (MIT): 100% open source, sin instalar nada -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; }
+
+    #hint {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      z-index: 10; padding: 10px 16px; border-radius: 999px;
+      background: rgba(0,0,0,.6); color: #fff; font-size: 14px; white-space: nowrap;
+    }
+
+    #panel {
+      position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 10;
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px; border-radius: 18px;
+      background: rgba(255,255,255,.92); box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      transition: transform .3s, opacity .3s;
+    }
+    #panel.hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+    #panel .info { flex: 1; text-align: center; }
+    #panel h2 { margin: 0 0 4px; font-size: 20px; }
+    #panel p { margin: 0 0 6px; font-size: 13px; color: #555; }
+    #panel strong { font-size: 18px; color: #1b7a3d; }
+    #panel button {
+      width: 44px; height: 44px; border: 0; border-radius: 50%;
+      background: #1b7a3d; color: #fff; font-size: 24px; line-height: 1; cursor: pointer;
+    }
+    #dots { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+    #dots span { width: 7px; height: 7px; border-radius: 50%; background: #ccc; }
+    #dots span.on { background: #1b7a3d; }
+  </style>
+</head>
+<body>
+  <div id="hint">📷 Apunta la cámara a la tarjeta del menú</div>
+
+  <div id="panel" class="hidden">
+    <button id="prev" aria-label="Anterior">‹</button>
+    <div class="info">
+      <h2 id="name"></h2>
+      <p id="desc"></p>
+      <strong id="price"></strong>
+      <div id="dots"></div>
+    </div>
+    <button id="next" aria-label="Siguiente">›</button>
+  </div>
+
+  <!--
+    imageTargetSrc = archivo .mind con la(s) imagen(es) que la cámara reconoce.
+    Por ahora usa la tarjeta de ejemplo de MindAR. Para usar TU imagen, mira el README (paso 4).
+  -->
+  <a-scene
+    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; uiScanning: no; uiLoading: yes; filterMinCF: 0.0001; filterBeta: 0.001"
+    color-space="sRGB"
+    renderer="colorManagement: true; antialias: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-light type="ambient" intensity="0.7"></a-light>
+    <a-light type="directional" position="1 2 3" intensity="0.9"></a-light>
+
+    <a-entity id="target" mindar-image-target="targetIndex: 0">
+      <!-- Giramos 90° para que el vaso quede "de pie" sobre la tarjeta -->
+      <a-entity rotation="90 0 0" scale="0.9 0.9 0.9">
+        <a-entity animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 14000; easing: linear">
+
+          <!-- Sombra -->
+          <a-circle radius="0.32" rotation="-90 0 0" position="0 0.002 0"
+                    material="color: #000; opacity: 0.25; transparent: true"></a-circle>
+
+          <!-- Jugo (se "llena" al cambiar de sabor) -->
+          <a-entity id="fill" position="0 0.03 0"
+                    animation__fill="property: scale; from: 1 0.01 1; to: 1 1 1; dur: 900; easing: easeOutCubic; startEvents: refill">
+            <a-cylinder id="liquid" radius="0.205" height="0.55" position="0 0.275 0"></a-cylinder>
+            <a-cylinder id="foam" radius="0.205" height="0.035" position="0 0.567 0"></a-cylinder>
+          </a-entity>
+
+          <!-- Hielo -->
+          <a-box width="0.1" height="0.1" depth="0.1" position="-0.07 0.52 0.05" rotation="20 30 10"
+                 material="color: #fff; opacity: 0.55; transparent: true"></a-box>
+          <a-box width="0.09" height="0.09" depth="0.09" position="0.06 0.54 -0.06" rotation="-15 45 0"
+                 material="color: #fff; opacity: 0.55; transparent: true"></a-box>
+
+          <!-- Vaso de vidrio -->
+          <a-cylinder radius="0.22" height="0.72" position="0 0.36 0" open-ended="true"
+                      material="color: #ffffff; opacity: 0.22; transparent: true; side: double; roughness: 0.05; metalness: 0.1"></a-cylinder>
+          <a-cylinder radius="0.22" height="0.03" position="0 0.015 0"
+                      material="color: #ffffff; opacity: 0.35; transparent: true"></a-cylinder>
+
+          <!-- Pitillo -->
+          <a-cylinder radius="0.018" height="0.95" position="0.07 0.62 0" rotation="0 0 -12" color="#e63946"></a-cylinder>
+
+          <!-- Rodaja de fruta en el borde -->
+          <a-entity position="0.22 0.7 0" rotation="90 0 0">
+            <a-cylinder id="peel" radius="0.14" height="0.02"></a-cylinder>
+            <a-cylinder id="pulp" radius="0.125" height="0.03"></a-cylinder>
+          </a-entity>
+
+          <!-- Fruta flotando al lado -->
+          <a-sphere id="fruit" radius="0.11" position="-0.45 0.3 0"
+                    animation="property: position; from: -0.45 0.25 0; to: -0.45 0.4 0; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine"></a-sphere>
+        </a-entity>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    // ===== Tu menú: edita aquí nombres, precios y colores =====
+    const JUGOS = [
+      { nombre: 'Naranja Zanahoria', desc: 'Naranja, zanahoria y jengibre', precio: '$8.000',
+        liquido: '#ff8c1a', espuma: '#ffc27a', cascara: '#ff9f1c', pulpa: '#ffd166', fruta: '#ff9f1c' },
+      { nombre: 'Fresa Banano', desc: 'Fresa, banano y leche de almendras', precio: '$9.500',
+        liquido: '#e63956', espuma: '#ffb3c1', cascara: '#d62839', pulpa: '#ff8fa3', fruta: '#e5383b' },
+      { nombre: 'Verde Detox', desc: 'Piña, pepino, espinaca y limón', precio: '$10.000',
+        liquido: '#7cb518', espuma: '#c7e59a', cascara: '#2b9348', pulpa: '#b5e48c', fruta: '#55a630' },
+      { nombre: 'Mango Maracuyá', desc: 'Mango, maracuyá y hierbabuena', precio: '$9.000',
+        liquido: '#ffb703', espuma: '#ffe08a', cascara: '#fb8500', pulpa: '#ffd60a', fruta: '#ffb703' },
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    let actual = 0;
+
+    $('dots').innerHTML = JUGOS.map(() => '<span></span>').join('');
+
+    function mostrar(i) {
+      actual = (i + JUGOS.length) % JUGOS.length;
+      const j = JUGOS[actual];
+      $('liquid').setAttribute('material', 'color', j.liquido);
+      $('foam').setAttribute('material', 'color', j.espuma);
+      $('peel').setAttribute('material', 'color', j.cascara);
+      $('pulp').setAttribute('material', 'color', j.pulpa);
+      $('fruit').setAttribute('material', 'color', j.fruta);
+      $('fill').emit('refill');
+
+      $('name').textContent = j.nombre;
+      $('desc').textContent = j.desc;
+      $('price').textContent = j.precio;
+      [...$('dots').children].forEach((d, k) => d.classList.toggle('on', k === actual));
+    }
+
+    $('prev').addEventListener('click', () => mostrar(actual - 1));
+    $('next').addEventListener('click', () => mostrar(actual + 1));
+
+    const target = $('target');
+    target.addEventListener('targetFound', () => {
+      $('hint').style.display = 'none';
+      $('panel').classList.remove('hidden');
+      $('fill').emit('refill');
+    });
+    target.addEventListener('targetLost', () => {
+      $('hint').style.display = '';
+      $('panel').classList.add('hidden');
+    });
+
+    document.querySelector('a-scene').addEventListener('loaded', () => mostrar(0));
+  </script>
+</body>
+</html>
